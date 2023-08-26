@@ -1,0 +1,1 @@
+export const backend_url = "https://vast-rose-bison-cuff.cyclic.cloud";
