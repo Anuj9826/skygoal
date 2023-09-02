@@ -14,6 +14,35 @@ const {
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
+//>>>>>>>>>>>>>>>>>>>>>>>>>> Implement stack using queues <<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+
+const userProfileRequestQueue = [];
+
+async function enqueueUserProfileRequest(userId) {
+  userProfileRequestQueue.push(userId);
+}
+
+async function processUserProfileRequests() {
+  if (userProfileRequestQueue.length === 0) {
+    return;
+  }
+
+  const userId = userProfileRequestQueue.pop();
+  try {
+    const userDoc = await userModel.findById(userId);
+    
+    if (userDoc) { 
+      console.log(userDoc);
+    } else {
+      console.log(`User ${userId} not found.`);
+    }
+  } catch (error) {
+    console.error(
+      `Error processing profile request for user ${userId}: ${error.message}`
+    );
+  }
+}
+
 //>>>>>>>>>>>>>>>>>>>>>>>>>> Register User <<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 
 const createUser = async function (req, res) {
@@ -263,10 +292,13 @@ const getUserProfile = async function (req, res) {
     if (req.userId !== userId) {
       res.status(400).send({
         status: false,
-        message: `Authorisation failed; You are logged in as ${req.userId}, not as ${userId}`,
+        message: `Authorization failed; You are logged in as ${req.userId}, not as ${userId}`,
       });
       return;
     }
+
+    enqueueUserProfileRequest(userId);
+    processUserProfileRequests(userId);
 
     res.status(200).send({
       status: true,
@@ -342,7 +374,10 @@ const updateUser = async function (req, res) {
       // email duplication check
       const emailDb = await userModel.findOne({ email: email });
       if (emailDb && emailDb._id.toString() !== userId)
-        return res.status(400).send({ status: false, msg: `${email} already used with other user!` });
+        return res.status(400).send({
+          status: false,
+          msg: `${email} already used with other user!`,
+        });
       updateUserData.email = email;
     }
 
@@ -410,4 +445,4 @@ const updateUser = async function (req, res) {
   }
 };
 
-module.exports = { createUser, loginUser, getUserProfile, updateUser };
+module.exports = { createUser, loginUser, getUserProfile, processUserProfileRequests, updateUser };
